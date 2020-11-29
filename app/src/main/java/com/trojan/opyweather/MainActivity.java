@@ -10,27 +10,22 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Dialog;
-import android.app.ProgressDialog;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.location.Criteria;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -50,9 +45,7 @@ import com.trojan.opyweather.Model.WeatherDetails;
 import com.trojan.opyweather.Model.WeatherForcastDetails;
 import com.trojan.opyweather.RetrofitEssentials.ApiClient;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import retrofit2.Call;
@@ -95,18 +88,6 @@ public class MainActivity extends AppCompatActivity {
         dialog.setContentView(R.layout.dialog_box_intro);
         dialog.setCancelable(false);
         dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-
-        Button doneBTN = dialog.findViewById(R.id.doneButton);
-        doneBTN.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                q2 = "";
-                getWeatherData();
-                getForcastWeatherData();
-                dialog.hide();
-            }
-        });
-        dialog.show();
 
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setHasFixedSize(true);
@@ -160,9 +141,15 @@ public class MainActivity extends AppCompatActivity {
         btnSearch.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                q2 = "";
-                getWeatherData();
-                getForcastWeatherData();
+
+                if (cityname.getText().toString().isEmpty()) {
+                    Toast.makeText(MainActivity.this, "Please Enter a City Name", Toast.LENGTH_SHORT).show();
+                } else {
+                    q2 = "";
+                    getWeatherData();
+                    getForcastWeatherData();
+                }
+
             }
         });
 
@@ -197,6 +184,7 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     Log.i(TAG, "Location Is Not Available");
                 }
+
             }
 
             @Override
@@ -206,7 +194,39 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        StartLocating();
+        locationchecker();
+
+        Button doneBTN = dialog.findViewById(R.id.doneButton);
+        doneBTN.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                q2 = "";
+                getWeatherData();
+                getForcastWeatherData();
+                dialog.hide();
+            }
+        });
+
+        dialog.show();
+    }
+
+    private void locationchecker() {
+        LocationManager locationManager = (LocationManager) MainActivity.this.getSystemService(Context.LOCATION_SERVICE);
+        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("GPS Not Enabled")  // GPS not found
+                    .setMessage("GPS Not Found") // Want to enable?
+                    .setPositiveButton("YES", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            MainActivity.this.startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                        }
+                    })
+                    .setNegativeButton("NO", null)
+                    .show();
+        }
+        else{
+            StartLocating();
+        }
     }
 
     private void StartLocating() {
@@ -220,8 +240,12 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onSuccess(Location location) {
                     currentLocation = location;
-                    Latitude = String.valueOf(currentLocation.getLatitude());
-                    Longitude = String.valueOf(currentLocation.getLongitude());
+                    if (location != null) {
+                        Latitude = String.valueOf(currentLocation.getLatitude());
+                        Longitude = String.valueOf(currentLocation.getLongitude());
+                        getWeatherData();
+                        getForcastWeatherData();
+                    }
                     // Toast.makeText(MainActivity.this, Longitude + " " + Longitude, Toast.LENGTH_SHORT).show();
                 }
             });
@@ -279,7 +303,7 @@ public class MainActivity extends AppCompatActivity {
                     tvPressure.setText(String.valueOf(response.body().getMain().getPressure()) + " hpa");
                     tvCity.setText(response.body().getName());
                     tvWindDegree.setText(String.valueOf(response.body().getWind().getDeg()));
-                    tvDate.setText("Last Updated : "+DateConverter.CovertDate(response.body().getDt()));
+                    tvDate.setText("Last Updated : " + DateConverter.CovertDate(response.body().getDt()));
 
                     Picasso.with(MainActivity.this)
                             .load("http://openweathermap.org/img/wn/" + response.body().getWeather().get(0).getIcon() + "@2x.png")
